@@ -196,7 +196,7 @@ function dayV(){
   <div class="bar"><button class="nb noprint" onclick="mv(-1)" aria-label="اليوم اللي قبله">›</button>
   <div class="ttl"><b>${dt}</b><span class="chip">أسبوع ${w+1}</span> <span class="chip ${na?'bd':'gd'}">${na?'غياب: '+na:'مفيش غياب'}</span>${ns?` <span class="chip bd">عجز: ${ns}</span>`:''}</div>
   <button class="nb noprint" onclick="mv(1)" aria-label="اليوم اللي بعده">‹</button></div>
-  <div class="bar noprint" style="justify-content:center"><label class="pl">اختيار تاريخ<input type="date" value="${D}" onchange="D=this.value||D;render()"></label><button class="pl" onclick="D=todayISO();render()">النهارده</button><button class="pl wa" onclick="wa()">إرسال واتساب</button><button class="pl" onclick="window.print()">طباعة</button></div>
+  <div class="bar noprint" style="justify-content:center"><label class="pl">اختيار تاريخ<input type="date" value="${D}" onchange="D=this.value||D;render()"></label><button class="pl" onclick="D=todayISO();render()">النهارده</button><button class="pl" onclick="pic()">حفظ كصورة</button><button class="pl wa" onclick="wa()">إرسال واتساب</button><button class="pl" onclick="window.print()">طباعة</button></div>
   ${body}<p class="ft">اضغط على أي عامل لتسجيل الغياب أو تعديل بياناته</p>`;
 }
 function wa(){
@@ -216,6 +216,73 @@ function wa(){
   });
   window.open('https://wa.me/?text='+encodeURIComponent(t.trim()),'_blank');
 }
+let PB,PU;
+async function pic(){
+  sheet('<h3>جاري تجهيز الصورة…</h3>');
+  try{await document.fonts.load('800 40px Tajawal');await document.fonts.load('500 30px Tajawal')}catch(e){}
+  const cs=getComputedStyle(document.documentElement),V=k=>cs.getPropertyValue(k).trim();
+  const BG={green:['#0b1a12','#21452f','#6ac28a'],blue:['#081226','#173a74','#4a97d6'],brown:['#190f08','#52331b','#d1a36a']}[curT()]||['#0b1a12','#21452f','#6ac28a'];
+  const SC=[V('--s1'),V('--s2'),V('--s3')];
+  const PAL=[['#f6d99a','#e3b46a'],['#e6c3ad','#c99d83'],['#d3c0ec','#b79ddc'],['#b4e0c8','#8fc7aa']];
+  const W=1080,P=56,CW=W-2*P,RH=350,HH=115,GAP=46,INK='#2a1f16',w=week(D);
+  const data=S.st.map(st=>({n:st.n,L:st.l.map(ln=>lane(ln,D))}));
+  let na=0,ns=0;data.forEach(s=>s.L.forEach(L=>L.forEach(q=>{if(q.st==='abs')na++;if(q.st==='short')ns++})));
+  const imgs={};
+  await Promise.all(Object.keys(S.w).filter(k=>S.w[k].p).map(k=>new Promise(r=>{const i=new Image();i.onload=()=>{imgs[k]=i;r()};i.onerror=r;i.src=S.w[k].p})));
+  const H=430+data.reduce((a,s)=>a+HH+s.L.length*RH+30+GAP,0)+120;
+  const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  const F=(wt,sz)=>`${wt} ${sz}px Tajawal,"Segoe UI",Tahoma,sans-serif`;
+  const rr=(a,b,w2,h,r)=>{x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w2,b,a+w2,b+h,r);x.arcTo(a+w2,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w2,b,r);x.closePath()};
+  const T=(s,px,py,sz,wt,col,al='center',mw=9999)=>{x.direction='rtl';x.textAlign=al;x.fillStyle=col;let z=sz;x.font=F(wt,z);while(x.measureText(s).width>mw&&z>14){z--;x.font=F(wt,z)}x.fillText(s,px,py)};
+  const WR=(s,px,py,sz,wt,col,mw,mx=2)=>{x.font=F(wt,sz);x.direction='rtl';x.textAlign='center';x.fillStyle=col;const ln=[''];s.split(' ').forEach(q=>{const t=ln[ln.length-1]?ln[ln.length-1]+' '+q:q;if(x.measureText(t).width>mw&&ln[ln.length-1])ln.push(q);else ln[ln.length-1]=t});ln.slice(0,mx).forEach((l,i)=>x.fillText(l,px,py+i*(sz+6)))};
+  // background
+  let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,BG[0]);g.addColorStop(1,BG[1]);x.fillStyle=g;x.fillRect(0,0,W,H);
+  let rg=x.createRadialGradient(W/2,190,10,W/2,190,560);rg.addColorStop(0,BG[2]+'cc');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,W,H);
+  rg=x.createRadialGradient(W*.1,H,10,W*.1,H,760);rg.addColorStop(0,BG[2]+'88');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,W,H);
+  for(let i=0;i<9000;i++){x.fillStyle=Math.random()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';x.fillRect(Math.random()*W,Math.random()*H,2,2)}
+  // header
+  const lg=document.querySelector('.lg img');
+  if(lg&&lg.naturalWidth){const lw=170,lh=lw*lg.naturalHeight/lg.naturalWidth;rr(W-P-lw-24,48,lw+24,lh+24,26);x.fillStyle='#fff';x.fill();x.drawImage(lg,W-P-lw-12,60,lw,lh)}
+  x.save();x.shadowColor=BG[2];x.shadowBlur=50;T('ورادي التوحيد',W/2,285,116,'800','#fff');x.restore();
+  const dt=new Date(D+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  T(dt,W/2,352,44,'500','#ffffffe6');
+  const chips=[['أسبوع '+(w+1),'#ffffff2e'],[na?'غياب: '+na:'مفيش غياب',na?'#e05748b0':'#3fae6ab0']];if(ns)chips.push(['عجز: '+ns,'#e05748b0']);
+  x.font=F('700',30);const cw=chips.map(c2=>x.measureText(c2[0]).width+50),tot=cw.reduce((a,b)=>a+b,0)+16*(chips.length-1);
+  let cx0=(W+tot)/2;chips.forEach((c2,i)=>{rr(cx0-cw[i],374,cw[i],54,27);x.fillStyle=c2[1];x.fill();T(c2[0],cx0-cw[i]/2,411,30,'700','#fff');cx0-=cw[i]+16});
+  // cards
+  let y=450;
+  data.forEach((s,si)=>{
+    const h=HH+s.L.length*RH+30,pal=PAL[si%4];
+    x.save();x.shadowColor='#0009';x.shadowBlur=40;x.shadowOffsetY=16;
+    const cg=x.createLinearGradient(P,y,P+CW,y+h);cg.addColorStop(0,pal[0]);cg.addColorStop(1,pal[1]);x.fillStyle=cg;rr(P,y,CW,h,56);x.fill();x.restore();
+    T(s.n,P+CW-44,y+82,58,'800',INK,'right',CW-120);
+    s.L.forEach((L,li)=>{
+      const ry=y+HH+li*RH;
+      if(li>0){x.fillStyle='#2a1f1622';x.fillRect(P+40,ry-6,CW-80,3)}
+      if(s.L.length>1)T('عامل '+(li+1),P+CW-44,ry+22,28,'700','#2a1f16aa','right');
+      L.forEach((q,k)=>{
+        const colW=(CW-80)/3,cx=P+CW-40-colW*(k+.5),o=wk(q.wid);
+        x.save();x.beginPath();x.arc(cx,ry+104,60,0,7);x.closePath();x.clip();
+        if(imgs[q.wid])x.drawImage(imgs[q.wid],cx-60,ry+44,120,120);else{x.fillStyle='#ffffffb0';x.fillRect(cx-60,ry+44,120,120)}
+        x.restore();
+        if(!imgs[q.wid])T((o.n||'؟').trim().charAt(0)||'؟',cx,ry+124,52,'800',INK);
+        if(q.st==='abs'){x.beginPath();x.arc(cx,ry+104,60,0,7);x.fillStyle='#78787899';x.fill()}
+        x.beginPath();x.arc(cx,ry+104,60,0,7);x.lineWidth=5;x.strokeStyle='#fff';x.stroke();
+        T(o.n||'— فاضي —',cx,ry+206,38,'800',INK,'center',colW-14);
+        rr(cx-colW/2+8,ry+222,colW-16,44,22);x.fillStyle=SC[k];x.fill();
+        T(SH[k+1].n+' · '+SH[k+1].t,cx,ry+253,22,'700','#fff','center',colW-34);
+        if(q.nt)WR(q.nt,cx,ry+296,25,'800',q.st==='abs'||q.st==='short'?'#b3402f':q.st==='cov'?'#7a4f00':'#17683c',colW-10);
+      });
+    });
+    y+=h+GAP;
+  });
+  T('AL-TAWHEED EGYPT · FOR TEXTILE STRIPS',W/2,H-52,26,'500','#ffffffb3');
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  PB=new File([blob],'ورادي-'+D+'.png',{type:'image/png'});if(PU)URL.revokeObjectURL(PU);PU=URL.createObjectURL(PB);
+  sheet(`<h3>صورة الجدول</h3><img src="${PU}" alt="" style="width:100%;border-radius:14px">${bt('مشاركة / إرسال واتساب','shr()','p')}${bt('تنزيل الصورة','dlp()')}${bt('إغلاق','cl()')}`);
+}
+function shr(){if(navigator.canShare&&navigator.canShare({files:[PB]}))navigator.share({files:[PB],title:'ورادي التوحيد'}).catch(()=>{});else dlp()}
+function dlp(){const a=document.createElement('a');a.href=PU;a.download=PB.name;a.click()}
 function mv(n){D=iso(dn(D)+n);render()}
 
 function setV(){
