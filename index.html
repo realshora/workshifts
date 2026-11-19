@@ -75,6 +75,7 @@ input[type=text],input[type=date],select{padding:11px 12px;border:1px solid var(
 .set .cell{flex-direction:column;text-align:center;gap:5px;padding:10px 4px}
 .set .av{width:48px;height:48px}
 .set .cell b{font-size:14px;word-break:break-word}
+.rost{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
 .hint{font-size:13.5px;color:var(--mut);line-height:1.7;margin:6px 0}
 .ov{position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 53%,transparent);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;z-index:20}
 .sheet{background:var(--sheetbg);width:100%;max-width:520px;border-radius:28px 28px 0 0;padding:18px;max-height:90vh;overflow:auto;display:grid;gap:10px}
@@ -138,9 +139,11 @@ function def(){return{anchor:todayISO(),w:{},abs:[],st:[
  {n:'المكوة الكبيرة',l:[mk3(),mk3()]},{n:'المكوة الصغيرة',l:[mk3(),mk3()]}]}}
 function load(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r)}catch(e){}return def()}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){alert('مساحة التخزين ممتلئة. صغّر الصور أو اعمل نسخة احتياطية.')}}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 let S=load(),tab='day',D=todayISO(),tmpP;
 
-const week=d=>Math.floor((dn(d)-dn(S.anchor))/7);
+const satOf=d=>iso(dn(d)-mod(new Date(dn(d)*864e5).getUTCDay()+1,7));
+const week=d=>Math.floor((dn(d)-dn(satOf(S.anchor)))/7);
 const grp=(s,w)=>mod(s-1+w,3);          // رقم المجموعة اللي على الوردية s في الأسبوع w
 const wk=id=>S.w[id]||{};
 
@@ -196,7 +199,7 @@ function dayV(){
   <div class="bar"><button class="nb noprint" onclick="mv(-1)" aria-label="اليوم اللي قبله">›</button>
   <div class="ttl"><b>${dt}</b><span class="chip">أسبوع ${w+1}</span> <span class="chip ${na?'bd':'gd'}">${na?'غياب: '+na:'مفيش غياب'}</span>${ns?` <span class="chip bd">عجز: ${ns}</span>`:''}</div>
   <button class="nb noprint" onclick="mv(1)" aria-label="اليوم اللي بعده">‹</button></div>
-  <div class="bar noprint" style="justify-content:center"><label class="pl">اختيار تاريخ<input type="date" value="${D}" onchange="D=this.value||D;render()"></label><button class="pl" onclick="D=todayISO();render()">النهارده</button><button class="pl" onclick="pic()">حفظ كصورة</button><button class="pl wa" onclick="wa()">إرسال واتساب</button><button class="pl" onclick="window.print()">طباعة</button></div>
+  <div class="bar noprint" style="justify-content:center"><label class="pl">اختيار تاريخ<input type="date" value="${D}" onchange="D=this.value||D;render()"></label><button class="pl" onclick="D=todayISO();render()">النهارده</button><button class="pl" onclick="picAsk()">حفظ كصورة</button><button class="pl wa" onclick="wa()">إرسال واتساب</button><button class="pl" onclick="window.print()">طباعة</button></div>
   ${body}<p class="ft">اضغط على أي عامل لتسجيل الغياب أو تعديل بياناته</p>`;
 }
 function wa(){
@@ -217,27 +220,28 @@ function wa(){
   window.open('https://wa.me/?text='+encodeURIComponent(t.trim()),'_blank');
 }
 let PB,PU;
-async function pic(){
+const fmtD=(d,y)=>new Date(d+'T12:00:00').toLocaleDateString('ar-EG',Object.assign({weekday:'long',day:'numeric',month:'long'},y?{year:'numeric'}:{}));
+function picAsk(){
+  const t=satOf(todayISO());
+  const wks=[[iso(dn(t)+7),'الأسبوع الجاي'],[t,'الأسبوع ده'],[iso(dn(t)+14),'الأسبوع اللي بعد الجاي']];
+  sheet('<h3>الورادي لأنهي أسبوع؟</h3>'+wks.map(([d,n],i)=>bt(`${n}<br><small>من ${fmtD(d)} إلى ${fmtD(iso(dn(d)+5))}</small>`,`pic('${d}')`,i?'':'p')).join('')+'<label>أو اختار أي تاريخ جوه الأسبوع</label><input type="date" onchange="if(this.value)pic(satOf(this.value))">'+bt('إغلاق','cl()'));
+}
+async function pic(sat){
   sheet('<h3>جاري تجهيز الصورة…</h3>');
   try{await document.fonts.load('800 40px Tajawal');await document.fonts.load('500 30px Tajawal')}catch(e){}
   const BG={green:['#0b1a12','#21452f','#6ac28a'],blue:['#081226','#173a74','#4a97d6'],brown:['#190f08','#52331b','#d1a36a']}[curT()]||['#0b1a12','#21452f','#6ac28a'];
-  const SC=['#c4821a','#2a9488','#5764d0'],NC={abs:'#ff9d8f',short:'#ff9d8f',cov:'#ffd98a',dbl:'#8fe6b1',ok:'#ffffffcc'};
-  const P=56,HH=86,GAP=34,w=week(D);
-  const noteOf=q=>q.st==='cov'||!q.nt?'':q.nt.replace('←','–');
-  const data=[];let na=0,ns=0;
-  S.st.forEach(st=>{
+  const SC=['#c4821a','#2a9488','#5764d0'];
+  const P=56,HH=86,GAP=34,RH=272,w=week(sat);
+  // خطة الأسبوع الأساسية بدون غياب
+  const data=[],sv0=S.abs;S.abs=[];
+  try{S.st.forEach(st=>{
     const Ls=[];
-    st.l.forEach(ln=>{
-      const items=[];
-      lane(ln,D).forEach((q,k)=>{if(q.wid){items.push({q,k});if(q.st==='abs')na++;if(q.st==='short')ns++}});
-      if(items.length)Ls.push({items,rh:items.some(i=>noteOf(i.q))?284:226});
-    });
-    if(Ls.length)data.push({n:st.n,Ls,h:HH+Ls.reduce((a,l)=>a+l.rh,0)+22});
-  });
+    st.l.forEach(ln=>{const items=[];lane(ln,sat).forEach((q,k)=>{if(q.wid)items.push({q,k})});if(items.length)Ls.push({items});});
+    if(Ls.length)data.push({n:st.n,Ls,h:HH+Ls.length*RH+22});
+  })}finally{S.abs=sv0}
   if(!data.length){sheet('<h3>مفيش عمال مسجلين لسه</h3>'+bt('إغلاق','cl()'));return}
   const imgs={};
   await Promise.all(Object.keys(S.w).filter(k=>S.w[k].p).map(k=>new Promise(r=>{const i=new Image();i.onload=()=>{imgs[k]=i;r()};i.onerror=r;i.src=S.w[k].p})));
-  // A4: النسبة 1 : 1.4142
   const H0=430+data.reduce((a,d)=>a+d.h+GAP,0)+90;
   const LW=Math.max(900,Math.round(H0/1.4142)),LH=Math.round(LW*1.4142),CW=LW-2*P;
   const gx=Math.min(60,Math.max(0,LH-H0)/(data.length+1));
@@ -245,22 +249,17 @@ async function pic(){
   const F=(wt,sz)=>`${wt} ${sz}px Tajawal,"Segoe UI",Tahoma,sans-serif`;
   const rr=(a,b,w2,h,r)=>{x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w2,b,a+w2,b+h,r);x.arcTo(a+w2,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w2,b,r);x.closePath()};
   const T=(s,px,py,sz,wt,col,al='center',mw=9999)=>{x.direction='rtl';x.textAlign=al;x.fillStyle=col;let z=sz;x.font=F(wt,z);while(x.measureText(s).width>mw&&z>13){z--;x.font=F(wt,z)}x.fillText(s,px,py)};
-  const WR=(s,px,py,sz,wt,col,mw,mx=2)=>{x.font=F(wt,sz);x.direction='rtl';x.textAlign='center';x.fillStyle=col;const ln=[''];s.split(' ').forEach(q=>{const t=ln[ln.length-1]?ln[ln.length-1]+' '+q:q;if(x.measureText(t).width>mw&&ln[ln.length-1])ln.push(q);else ln[ln.length-1]=t});ln.slice(0,mx).forEach((l,i)=>x.fillText(l,px,py+i*(sz+6)))};
-  // الخلفية
   let g=x.createLinearGradient(0,0,0,LH);g.addColorStop(0,BG[0]);g.addColorStop(1,BG[1]);x.fillStyle=g;x.fillRect(0,0,LW,LH);
   let rg=x.createRadialGradient(LW/2,170,10,LW/2,170,520);rg.addColorStop(0,BG[2]+'bb');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,LW,LH);
   rg=x.createRadialGradient(LW*.1,LH,10,LW*.1,LH,760);rg.addColorStop(0,BG[2]+'88');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,LW,LH);
   for(let i=0;i<7000;i++){x.fillStyle=Math.random()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';x.fillRect(Math.random()*LW,Math.random()*LH,2,2)}
-  // الهيدر
   const lg=document.querySelector('.lg img');
   if(lg&&lg.naturalWidth){const lw=150,lh=lw*lg.naturalHeight/lg.naturalWidth;rr(LW-P-lw-24,40,lw+24,lh+24,24);x.fillStyle='#fff';x.fill();x.drawImage(lg,LW-P-lw-12,52,lw,lh)}
   x.save();x.shadowColor=BG[2];x.shadowBlur=40;T('ورادي التوحيد',LW/2,235,92,'800','#fff');x.restore();
-  const dt=new Date(D+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  T(dt,LW/2,318,40,'500','#ffffffe6');
-  const chips=[['أسبوع '+(w+1),'#ffffff2e'],[na?'غياب: '+na:'مفيش غياب',na?'#e05748b0':'#3fae6ab0']];if(ns)chips.push(['عجز: '+ns,'#e05748b0']);
-  x.font=F('700',28);const cw=chips.map(c2=>x.measureText(c2[0]).width+46),tot=cw.reduce((a,b)=>a+b,0)+14*(chips.length-1);
-  let cx0=(LW+tot)/2;chips.forEach((c2,i)=>{rr(cx0-cw[i],348,cw[i],48,24);x.fillStyle=c2[1];x.fill();T(c2[0],cx0-cw[i]/2,382,28,'700','#fff');cx0-=cw[i]+14});
-  // الكروت (شفافة)
+  const thu=iso(dn(sat)+5);
+  T(`من ${fmtD(sat)} إلى ${fmtD(thu,1)}`,LW/2,318,38,'500','#ffffffe6','center',LW-2*P);
+  x.font=F('700',28);const wt='أسبوع '+(w+1),ww=x.measureText(wt).width+46;
+  rr((LW-ww)/2,348,ww,48,24);x.fillStyle='#ffffff2e';x.fill();T(wt,LW/2,382,28,'700','#fff');
   let y=430;
   data.forEach(s=>{
     rr(P,y,CW,s.h,44);const cg=x.createLinearGradient(0,y,0,y+s.h);cg.addColorStop(0,'rgba(255,255,255,.17)');cg.addColorStop(1,'rgba(255,255,255,.06)');x.fillStyle=cg;x.fill();x.lineWidth=2;x.strokeStyle='rgba(255,255,255,.34)';x.stroke();
@@ -271,26 +270,24 @@ async function pic(){
       if(s.Ls.length>1)T('عامل '+(li+1),P+CW-40,ry+20,24,'700','#ffffffaa','right');
       const colW=(CW-80)/3,m=L.items.length,sr=P+CW/2+m*colW/2;
       L.items.forEach(({q,k},i)=>{
-        const cx=sr-colW*(i+.5),o=wk(q.wid),ay=ry+78;
-        x.save();x.beginPath();x.arc(cx,ay,44,0,7);x.closePath();x.clip();
-        if(imgs[q.wid])x.drawImage(imgs[q.wid],cx-44,ay-44,88,88);else{x.fillStyle='#ffffff40';x.fillRect(cx-44,ay-44,88,88)}
+        const cx=sr-colW*(i+.5),o=wk(q.wid),ay=ry+94,R=58;
+        x.save();x.beginPath();x.arc(cx,ay,R,0,7);x.closePath();x.clip();
+        if(imgs[q.wid])x.drawImage(imgs[q.wid],cx-R,ay-R,R*2,R*2);else{x.fillStyle='#ffffff40';x.fillRect(cx-R,ay-R,R*2,R*2)}
         x.restore();
-        if(!imgs[q.wid])T((o.n||'؟').trim().charAt(0)||'؟',cx,ay+16,44,'800','#fff');
-        if(q.st==='abs'){x.beginPath();x.arc(cx,ay,44,0,7);x.fillStyle='#78787899';x.fill()}
-        x.beginPath();x.arc(cx,ay,44,0,7);x.lineWidth=4;x.strokeStyle='#fff';x.stroke();
-        T(o.n||'—',cx,ry+158,30,'800','#fff','center',colW-14);
-        rr(cx-colW/2+10,ry+170,colW-20,36,18);x.fillStyle=SC[k];x.fill();
-        T(q.h?'12 ساعة · '+q.h:SH[k+1].n+' · '+SH[k+1].t,cx,ry+196,19,'700','#fff','center',colW-44);
-        const nt=noteOf(q);if(nt)WR(nt,cx,ry+238,21,'800',NC[q.st]||'#fff',colW-12);
+        if(!imgs[q.wid])T((o.n||'؟').trim().charAt(0)||'؟',cx,ay+18,48,'800','#fff');
+        x.beginPath();x.arc(cx,ay,R,0,7);x.lineWidth=4;x.strokeStyle='#fff';x.stroke();
+        T(o.n||'—',cx,ry+200,38,'800','#fff','center',colW-10);
+        rr(cx-colW/2+10,ry+214,colW-20,40,20);x.fillStyle=SC[k];x.fill();
+        T(q.h?'12 ساعة · '+q.h:SH[k+1].n+' · '+SH[k+1].t,cx,ry+242,21,'700','#fff','center',colW-44);
       });
-      ry+=L.rh;
+      ry+=RH;
     });
     y+=s.h+GAP+gx;
   });
   T('AL-TAWHEED EGYPT · FOR TEXTILE STRIPS',LW/2,LH-40,24,'500','#ffffffb3');
   const blob=await new Promise(r=>c.toBlob(r,'image/png'));
-  PB=new File([blob],'ورادي-'+D+'.png',{type:'image/png'});if(PU)URL.revokeObjectURL(PU);PU=URL.createObjectURL(PB);
-  sheet(`<h3>صورة الجدول (A4)</h3><img src="${PU}" alt="" style="width:100%;border-radius:12px;border:1px solid #0002">${bt('مشاركة / إرسال واتساب','shr()','p')}${bt('تنزيل الصورة','dlp()')}${bt('إغلاق','cl()')}`);
+  PB=new File([blob],'ورادي-'+sat+'.png',{type:'image/png'});if(PU)URL.revokeObjectURL(PU);PU=URL.createObjectURL(PB);
+  sheet(`<h3>ورادي الأسبوع (A4)</h3><img src="${PU}" alt="" style="width:100%;border-radius:12px;border:1px solid #0002">${bt('مشاركة / إرسال واتساب','shr()','p')}${bt('تنزيل الصورة','dlp()')}${bt('إغلاق','cl()')}`);
 }
 function shr(){if(navigator.canShare&&navigator.canShare({files:[PB]}))navigator.share({files:[PB],title:'ورادي التوحيد'}).catch(()=>{});else dlp()}
 function dlp(){const a=document.createElement('a');a.href=PU;a.download=PB.name;a.click()}
@@ -299,7 +296,7 @@ function mv(n){D=iso(dn(D)+n);render()}
 function setV(){
   let h=`<div class="st"><h2>الألوان</h2><div class="bar" style="margin:0">${[['green','أخضر'],['blue','أزرق'],['brown','بني (لون الشركة)']].map(([k,n])=>`<button class="b ${curT()===k?'p':''}" onclick="setTheme('${k}')">${n}</button>`).join('')}</div></div>
   <div class="st"><h2>بداية الدوران</h2>
-  <label class="hint">أول يوم في الأسبوع الأول (الترتيب المسجّل تحت هو ترتيب الأسبوع ده)</label>
+  <label class="hint">أي يوم جوه أول أسبوع (الترتيب المسجّل تحت هو ترتيب الأسبوع ده). الأسبوع بيبدأ من السبت، والدوران بيتغير كل سبت.</label>
   <input type="date" value="${S.anchor}" onchange="S.anchor=this.value||S.anchor;save()">
   <p class="hint">كل أسبوع: الأولى ← التالتة، التانية ← الأولى، التالتة ← التانية. الجدول بيتحسب لوحده لأي تاريخ.</p></div>`;
   S.st.forEach((st,si)=>{
@@ -310,6 +307,8 @@ function setV(){
     });
     h+=`<div class="bar" style="margin:10px 0 0"><button class="b" onclick="ln(${si},1)">+ عامل في الوردية</button>${st.l.length>1?`<button class="b" onclick="ln(${si},-1)">− عامل</button>`:''}</div></section>`;
   });
+  {const ids=Object.keys(S.w).sort((a,b)=>(S.w[a].n||'').localeCompare(S.w[b].n||'','ar'));
+  h+=`<section class="st"><h2><span>العمال المحفوظين (${ids.length})</span><button class="b p" onclick="ew('')">+ عامل</button></h2><p class="hint">الاسم والصورة بيتحفظوا مرة واحدة، وبعدها تختار العامل من القايمة وهو بيجي بصورته.</p><div class="rost">`+ids.map(id=>{const o=S.w[id],wh=where(id);return `<button class="cell" onclick="ew('${id}')">${avh(o)}<div><b>${esc(o.n)||'بدون اسم'}</b><small>${wh?esc(wh):'غير موزع'}</small></div></button>`}).join('')+`</div></section>`}
   h+=`<div class="bar"><button class="b p" onclick="ad()">+ إضافة مكنة / قسم</button><button class="b" onclick="ex()">نسخة احتياطية</button><label class="b">استرجاع<input type="file" accept=".json" hidden onchange="im(this.files[0])"></label></div>
   <p class="hint">البيانات محفوظة على الجهاز ده. اعمل نسخة احتياطية من وقت للتاني. الخانة الفاضية بتتحسب غياب وبتتغطى بنفس القاعدة.</p>`;
   return h;
@@ -344,18 +343,34 @@ function mka(si,li,g,m){
 }
 function ua(id){S.abs=S.abs.filter(a=>a.id!==id);save();cl();render()}
 
+function where(id){for(const st of S.st)for(let l=0;l<st.l.length;l++){const g=st.l[l].indexOf(id);if(g>=0)return st.n+(st.l.length>1?' · عامل '+(l+1):'')+' · '+SH[g+1].n}return null}
+function ew(id){
+  tmpP=undefined;const o=S.w[id]||{};
+  sheet(`<h3>${id?'تعديل عامل':'عامل جديد'}</h3><label>الاسم</label><input type="text" id="nm" value="${esc(o.n)}" placeholder="اسم العامل"><label>الصورة</label><div class="pic"><div id="pv">${avh(o)}</div><input type="file" accept="image/*" onchange="pk(this.files[0])"></div>${bt('حفظ',`svw('${id}')`,'p')}${id?bt('حذف العامل نهائياً',`dw('${id}')`,'d'):''}${bt('إغلاق','cl()')}`);
+}
+function svw(id){const n=$('#nm').value.trim();if(!n&&!id){cl();return}if(!id){id=uid();S.w[id]={}}S.w[id].n=n;if(tmpP!==undefined)S.w[id].p=tmpP;save();cl();render()}
+function dw(id){if(!confirm('حذف '+(S.w[id].n||'العامل')+' نهائياً من القايمة والمكن؟'))return;S.st.forEach(st=>st.l.forEach(l=>l.forEach((x,g)=>{if(x===id)l[g]=null})));delete S.w[id];S.abs=S.abs.filter(a=>a.w!==id&&a.c!==id);save();cl();render()}
+function asg(si,li,g,id){
+  if(!id)return;const ln=S.st[si].l[li];let at=null;
+  S.st.forEach((st,a)=>st.l.forEach((l,b)=>l.forEach((x,c)=>{if(x===id)at=[a,b,c]})));
+  const cur=ln[g];if(at)S.st[at[0]].l[at[1]][at[2]]=cur;ln[g]=id;save();cl();render();
+}
 function edit(si,li,g){
   tmpP=undefined;
   const id=S.st[si].l[li][g],o=wk(id);
+  const ids=Object.keys(S.w).sort((a,b)=>(S.w[a].n||'').localeCompare(S.w[b].n||'','ar'));
+  const pick='<option value="">— اختار عامل محفوظ —</option>'+ids.map(k=>`<option value="${k}">${esc(S.w[k].n)||'بدون اسم'} — ${esc(where(k)||'غير موزع')}</option>`).join('');
   let opts='<option value="">— اختار —</option>';
-  S.st.forEach((s,a)=>s.l.forEach((l,b)=>l.forEach((x,c)=>{if(!(a===si&&b===li&&c===g))opts+=`<option value="${a},${b},${c}">${esc(s.n)}${s.l.length>1?' · عامل '+(b+1):''} · وردية ${SH[c+1].n} — ${esc(wk(x).n)||'فاضي'}</option>`})));
+  S.st.forEach((st,a)=>st.l.forEach((l,b)=>l.forEach((x,c)=>{if(!(a===si&&b===li&&c===g))opts+=`<option value="${a},${b},${c}">${esc(st.n)}${st.l.length>1?' · عامل '+(b+1):''} · وردية ${SH[c+1].n} — ${esc(wk(x).n)||'فاضي'}</option>`})));
   sheet(`<h3>${esc(S.st[si].n)} · وردية ${SH[g+1].n} (ترتيب أسبوع البداية)</h3>
-  <label>الاسم</label><input type="text" id="nm" value="${esc(o.n)}" placeholder="اسم العامل">
-  <label>الصورة</label><div class="pic"><div id="pv">${avh(o)}</div><input type="file" accept="image/*" onchange="pk(this.files[0])"></div>
+  <label>اختار من العمال المحفوظين (بصورهم، من غير رفع تاني)</label><select onchange="asg(${si},${li},${g},this.value)">${pick}</select>
+  <label>${id?'تعديل بيانات العامل':'أو أضف عامل جديد'}</label><input type="text" id="nm" value="${esc(o.n)}" placeholder="اسم العامل">
+  <div class="pic"><div id="pv">${avh(o)}</div><input type="file" accept="image/*" onchange="pk(this.files[0])"></div>
   ${bt('حفظ',`sv(${si},${li},${g})`,'p')}
   <label>تبديل مع عامل تاني</label><select onchange="sw(${si},${li},${g},this.value)">${opts}</select>
-  ${id?bt('مسح العامل من الخانة',`rm(${si},${li},${g})`,'d'):''}${bt('إغلاق','cl()')}`);
+  ${id?bt('شيل العامل من الخانة (بيفضل محفوظ)',`rm(${si},${li},${g})`,'d'):''}${bt('إغلاق','cl()')}`);
 }
+function rm(si,li,g){S.st[si].l[li][g]=null;save();cl();render()}
 function pk(f){if(!f)return;const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=c.height=160;const m=Math.min(i.width,i.height);c.getContext('2d').drawImage(i,(i.width-m)/2,(i.height-m)/2,m,m,0,0,160,160);tmpP=c.toDataURL('image/jpeg',.72);$('#pv').innerHTML=avh({p:tmpP,n:$('#nm').value})};i.src=r.result};r.readAsDataURL(f)}
 function sv(si,li,g){
   let id=S.st[si].l[li][g];const n=$('#nm').value.trim();
@@ -366,12 +381,6 @@ function sv(si,li,g){
 function sw(si,li,g,v){
   if(!v)return;const [a,b,c]=v.split(',').map(Number);
   const x=S.st[si].l[li],y=S.st[a].l[b];const t=x[g];x[g]=y[c];y[c]=t;save();cl();render();
-}
-function rm(si,li,g){
-  const id=S.st[si].l[li][g];if(!confirm('مسح '+(wk(id).n||'العامل')+' من الخانة؟'))return;
-  S.st[si].l[li][g]=null;
-  if(!S.st.some(s=>s.l.some(l=>l.includes(id)))){delete S.w[id];S.abs=S.abs.filter(a=>a.w!==id&&a.c!==id)}
-  save();cl();render();
 }
 function ex(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='tawheed-shifts-'+todayISO()+'.json';a.click()}
 function im(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(!j.st||!j.anchor)throw 0;S=j;save();render()}catch(e){alert('الملف ده مش نسخة صحيحة')}};r.readAsText(f)}
