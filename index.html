@@ -38,6 +38,7 @@ button,input,select{font:inherit}
 .dp.on.td::after{background:#fff}
 .pl{position:relative;display:inline-flex;align-items:center;justify-content:center;padding:9px 16px;border-radius:30px;background:#f4ede3;box-shadow:5px 5px 12px var(--sh),-5px -5px 12px #fff;font-weight:700;color:var(--dk);cursor:pointer;border:0}
 .pl input{position:absolute;inset:0;opacity:0;width:100%}
+.pl.wa{background:#25a15a;color:#fff;box-shadow:0 6px 14px #25a15a55}
 .b{padding:9px 16px;border:0;border-radius:30px;background:#f4ede3;box-shadow:4px 4px 10px var(--sh),-4px -4px 10px #fff;font-weight:700;color:var(--dk);cursor:pointer}
 .b.p{background:var(--br);color:#fff;box-shadow:0 6px 14px #90685066}
 .b.d{color:var(--bad)}
@@ -77,7 +78,28 @@ input[type=text],input[type=date],select{padding:11px 12px;border:1px solid #e3d
 .bn button.on{background:var(--br);color:#fff;box-shadow:0 6px 14px #90685066}
 .ft{text-align:center;color:var(--mut);font-size:12.5px;margin-top:8px}
 @media(min-width:700px){.ov{align-items:center}.sheet{border-radius:28px}}
-@media print{.bn,.noprint,.ft{display:none}header{position:static}body{background:#fff}.cell{break-inside:avoid}.st,.gl{box-shadow:none;backdrop-filter:none}}
+@page{size:A5 landscape;margin:7mm}
+@media print{
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{background:#fff;padding:0;font-size:10pt;min-height:0}
+.bn,.noprint,.ft{display:none!important}
+header{position:static;padding:0 0 4px;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:0}
+.lg{box-shadow:none;padding:0}.lg img{height:26px}
+header h1{font-size:13pt}header p{display:none}
+main{padding:0;max-width:none}
+.bar{margin:2px 0 4px}.ttl b{font-size:11pt}.chip{font-size:8pt;padding:1px 7px}
+.st{padding:4px 6px;margin-bottom:4px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;background:#fff;border:1px solid #cdbfae;border-radius:8px;break-inside:avoid}
+.st h2{font-size:10.5pt;margin-bottom:3px}
+.st h3{margin:3px 0 2px;font-size:8.5pt}
+.row{grid-template-columns:repeat(3,1fr)!important;gap:4px}
+.row .cell{flex-direction:row;text-align:right;padding:3px 5px;gap:5px;box-shadow:none;border-radius:8px;break-inside:avoid}
+.row .cell>div{width:auto;text-align:right}
+.av{width:28px;height:28px;font-size:12pt;border-width:1px;box-shadow:none}
+.row .cell b{font-size:9.5pt;margin:0}
+.row .sb{font-size:7.5pt;padding:0 5px;justify-content:flex-start}
+.sb svg{width:9px;height:9px}
+.row .nt{font-size:7.5pt;margin-top:1px}
+}
 </style>
 </head>
 <body>
@@ -161,8 +183,25 @@ function dayV(){
   <div class="bar"><button class="nb noprint" onclick="mv(-1)" aria-label="اليوم اللي قبله">›</button>
   <div class="ttl"><b>${dt}</b><span class="chip">أسبوع ${w+1}</span> <span class="chip ${na?'bd':'gd'}">${na?'غياب: '+na:'مفيش غياب'}</span>${ns?` <span class="chip bd">عجز: ${ns}</span>`:''}</div>
   <button class="nb noprint" onclick="mv(1)" aria-label="اليوم اللي بعده">‹</button></div>
-  <div class="bar noprint" style="justify-content:center"><label class="pl">اختيار تاريخ<input type="date" value="${D}" onchange="D=this.value||D;render()"></label><button class="pl" onclick="D=todayISO();render()">النهارده</button><button class="pl" onclick="window.print()">طباعة</button></div>
+  <div class="bar noprint" style="justify-content:center"><label class="pl">اختيار تاريخ<input type="date" value="${D}" onchange="D=this.value||D;render()"></label><button class="pl" onclick="D=todayISO();render()">النهارده</button><button class="pl wa" onclick="wa()">إرسال واتساب</button><button class="pl" onclick="window.print()">طباعة</button></div>
   ${body}<p class="ft">اضغط على أي عامل لتسجيل الغياب أو تعديل بياناته</p>`;
+}
+function wa(){
+  const w=week(D);
+  const dt=new Date(D+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  let t=`*ورادي التوحيد إيجيبت*\n${dt}\nأسبوع ${w+1}\n`;
+  S.st.forEach(st=>{
+    t+=`\n*${st.n}*\n`;
+    st.l.forEach((ln,li)=>{
+      if(st.l.length>1)t+=`عامل ${li+1}:\n`;
+      lane(ln,D).forEach((x,i)=>{
+        const nm=wk(x.wid).n||'فاضي';
+        const nt=x.st==='abs'?' (غائب)':x.st==='cov'?' (تطبيق 12س)':x.st==='dbl'?' (يشيل التانية والتالتة)':x.st==='short'?' (عجز - محتاج بديل)':'';
+        t+=`${SH[i+1].n} ${SH[i+1].t}: ${nm}${nt}\n`;
+      });
+    });
+  });
+  window.open('https://wa.me/?text='+encodeURIComponent(t.trim()),'_blank');
 }
 function mv(n){D=iso(dn(D)+n);render()}
 
