@@ -161,7 +161,7 @@ function lane(ln,d){
   if(both&&miss[2]&&!miss[1]&&ws[1]===both.c){r[1].st='dbl';r[1].nt='يشيل التانية والتالتة (3م ← 8ص)';return r}
   const n=miss.filter(Boolean).length;
   const ok=[0,1,2].filter(i=>!miss[i]);
-  if(n===1){r[ok[0]].st='cov';r[ok[0]].nt='تطبيق 12س · 7:30ص ← 7:30م';r[ok[1]].st='cov';r[ok[1]].nt='تطبيق 12س · 7:30م ← 7:30ص'}
+  if(n===1){r[ok[0]].st='cov';r[ok[0]].nt='تطبيق 12س · 7:30ص ← 7:30م';r[ok[1]].st='cov';r[ok[1]].nt='تطبيق 12س · 7:30م ← 7:30ص';r[ok[0]].h='7:30ص – 7:30م';r[ok[1]].h='7:30م – 7:30ص'}
   else if(n>=2){ok.forEach(i=>{r[i].st='short';r[i].nt='عجز — محتاج بديل'})}
   return r;
 }
@@ -220,66 +220,77 @@ let PB,PU;
 async function pic(){
   sheet('<h3>جاري تجهيز الصورة…</h3>');
   try{await document.fonts.load('800 40px Tajawal');await document.fonts.load('500 30px Tajawal')}catch(e){}
-  const cs=getComputedStyle(document.documentElement),V=k=>cs.getPropertyValue(k).trim();
   const BG={green:['#0b1a12','#21452f','#6ac28a'],blue:['#081226','#173a74','#4a97d6'],brown:['#190f08','#52331b','#d1a36a']}[curT()]||['#0b1a12','#21452f','#6ac28a'];
-  const SC=[V('--s1'),V('--s2'),V('--s3')];
-  const PAL=[['#f6d99a','#e3b46a'],['#e6c3ad','#c99d83'],['#d3c0ec','#b79ddc'],['#b4e0c8','#8fc7aa']];
-  const W=1080,P=56,CW=W-2*P,RH=350,HH=115,GAP=46,INK='#2a1f16',w=week(D);
-  const data=S.st.map(st=>({n:st.n,L:st.l.map(ln=>lane(ln,D))}));
-  let na=0,ns=0;data.forEach(s=>s.L.forEach(L=>L.forEach(q=>{if(q.st==='abs')na++;if(q.st==='short')ns++})));
+  const SC=['#c4821a','#2a9488','#5764d0'],NC={abs:'#ff9d8f',short:'#ff9d8f',cov:'#ffd98a',dbl:'#8fe6b1',ok:'#ffffffcc'};
+  const P=56,HH=86,GAP=34,w=week(D);
+  const noteOf=q=>q.st==='cov'||!q.nt?'':q.nt.replace('←','–');
+  const data=[];let na=0,ns=0;
+  S.st.forEach(st=>{
+    const Ls=[];
+    st.l.forEach(ln=>{
+      const items=[];
+      lane(ln,D).forEach((q,k)=>{if(q.wid){items.push({q,k});if(q.st==='abs')na++;if(q.st==='short')ns++}});
+      if(items.length)Ls.push({items,rh:items.some(i=>noteOf(i.q))?284:226});
+    });
+    if(Ls.length)data.push({n:st.n,Ls,h:HH+Ls.reduce((a,l)=>a+l.rh,0)+22});
+  });
+  if(!data.length){sheet('<h3>مفيش عمال مسجلين لسه</h3>'+bt('إغلاق','cl()'));return}
   const imgs={};
   await Promise.all(Object.keys(S.w).filter(k=>S.w[k].p).map(k=>new Promise(r=>{const i=new Image();i.onload=()=>{imgs[k]=i;r()};i.onerror=r;i.src=S.w[k].p})));
-  const H=430+data.reduce((a,s)=>a+HH+s.L.length*RH+30+GAP,0)+120;
-  const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  // A4: النسبة 1 : 1.4142
+  const H0=430+data.reduce((a,d)=>a+d.h+GAP,0)+90;
+  const LW=Math.max(900,Math.round(H0/1.4142)),LH=Math.round(LW*1.4142),CW=LW-2*P;
+  const gx=Math.min(60,Math.max(0,LH-H0)/(data.length+1));
+  const c=document.createElement('canvas');c.width=1240;c.height=1754;const x=c.getContext('2d');x.scale(1240/LW,1754/LH);
   const F=(wt,sz)=>`${wt} ${sz}px Tajawal,"Segoe UI",Tahoma,sans-serif`;
   const rr=(a,b,w2,h,r)=>{x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w2,b,a+w2,b+h,r);x.arcTo(a+w2,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w2,b,r);x.closePath()};
-  const T=(s,px,py,sz,wt,col,al='center',mw=9999)=>{x.direction='rtl';x.textAlign=al;x.fillStyle=col;let z=sz;x.font=F(wt,z);while(x.measureText(s).width>mw&&z>14){z--;x.font=F(wt,z)}x.fillText(s,px,py)};
+  const T=(s,px,py,sz,wt,col,al='center',mw=9999)=>{x.direction='rtl';x.textAlign=al;x.fillStyle=col;let z=sz;x.font=F(wt,z);while(x.measureText(s).width>mw&&z>13){z--;x.font=F(wt,z)}x.fillText(s,px,py)};
   const WR=(s,px,py,sz,wt,col,mw,mx=2)=>{x.font=F(wt,sz);x.direction='rtl';x.textAlign='center';x.fillStyle=col;const ln=[''];s.split(' ').forEach(q=>{const t=ln[ln.length-1]?ln[ln.length-1]+' '+q:q;if(x.measureText(t).width>mw&&ln[ln.length-1])ln.push(q);else ln[ln.length-1]=t});ln.slice(0,mx).forEach((l,i)=>x.fillText(l,px,py+i*(sz+6)))};
-  // background
-  let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,BG[0]);g.addColorStop(1,BG[1]);x.fillStyle=g;x.fillRect(0,0,W,H);
-  let rg=x.createRadialGradient(W/2,190,10,W/2,190,560);rg.addColorStop(0,BG[2]+'cc');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,W,H);
-  rg=x.createRadialGradient(W*.1,H,10,W*.1,H,760);rg.addColorStop(0,BG[2]+'88');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,W,H);
-  for(let i=0;i<9000;i++){x.fillStyle=Math.random()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';x.fillRect(Math.random()*W,Math.random()*H,2,2)}
-  // header
+  // الخلفية
+  let g=x.createLinearGradient(0,0,0,LH);g.addColorStop(0,BG[0]);g.addColorStop(1,BG[1]);x.fillStyle=g;x.fillRect(0,0,LW,LH);
+  let rg=x.createRadialGradient(LW/2,170,10,LW/2,170,520);rg.addColorStop(0,BG[2]+'bb');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,LW,LH);
+  rg=x.createRadialGradient(LW*.1,LH,10,LW*.1,LH,760);rg.addColorStop(0,BG[2]+'88');rg.addColorStop(1,BG[2]+'00');x.fillStyle=rg;x.fillRect(0,0,LW,LH);
+  for(let i=0;i<7000;i++){x.fillStyle=Math.random()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';x.fillRect(Math.random()*LW,Math.random()*LH,2,2)}
+  // الهيدر
   const lg=document.querySelector('.lg img');
-  if(lg&&lg.naturalWidth){const lw=170,lh=lw*lg.naturalHeight/lg.naturalWidth;rr(W-P-lw-24,48,lw+24,lh+24,26);x.fillStyle='#fff';x.fill();x.drawImage(lg,W-P-lw-12,60,lw,lh)}
-  x.save();x.shadowColor=BG[2];x.shadowBlur=50;T('ورادي التوحيد',W/2,285,116,'800','#fff');x.restore();
+  if(lg&&lg.naturalWidth){const lw=150,lh=lw*lg.naturalHeight/lg.naturalWidth;rr(LW-P-lw-24,40,lw+24,lh+24,24);x.fillStyle='#fff';x.fill();x.drawImage(lg,LW-P-lw-12,52,lw,lh)}
+  x.save();x.shadowColor=BG[2];x.shadowBlur=40;T('ورادي التوحيد',LW/2,235,92,'800','#fff');x.restore();
   const dt=new Date(D+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  T(dt,W/2,352,44,'500','#ffffffe6');
+  T(dt,LW/2,318,40,'500','#ffffffe6');
   const chips=[['أسبوع '+(w+1),'#ffffff2e'],[na?'غياب: '+na:'مفيش غياب',na?'#e05748b0':'#3fae6ab0']];if(ns)chips.push(['عجز: '+ns,'#e05748b0']);
-  x.font=F('700',30);const cw=chips.map(c2=>x.measureText(c2[0]).width+50),tot=cw.reduce((a,b)=>a+b,0)+16*(chips.length-1);
-  let cx0=(W+tot)/2;chips.forEach((c2,i)=>{rr(cx0-cw[i],374,cw[i],54,27);x.fillStyle=c2[1];x.fill();T(c2[0],cx0-cw[i]/2,411,30,'700','#fff');cx0-=cw[i]+16});
-  // cards
-  let y=450;
-  data.forEach((s,si)=>{
-    const h=HH+s.L.length*RH+30,pal=PAL[si%4];
-    x.save();x.shadowColor='#0009';x.shadowBlur=40;x.shadowOffsetY=16;
-    const cg=x.createLinearGradient(P,y,P+CW,y+h);cg.addColorStop(0,pal[0]);cg.addColorStop(1,pal[1]);x.fillStyle=cg;rr(P,y,CW,h,56);x.fill();x.restore();
-    T(s.n,P+CW-44,y+82,58,'800',INK,'right',CW-120);
-    s.L.forEach((L,li)=>{
-      const ry=y+HH+li*RH;
-      if(li>0){x.fillStyle='#2a1f1622';x.fillRect(P+40,ry-6,CW-80,3)}
-      if(s.L.length>1)T('عامل '+(li+1),P+CW-44,ry+22,28,'700','#2a1f16aa','right');
-      L.forEach((q,k)=>{
-        const colW=(CW-80)/3,cx=P+CW-40-colW*(k+.5),o=wk(q.wid);
-        x.save();x.beginPath();x.arc(cx,ry+104,60,0,7);x.closePath();x.clip();
-        if(imgs[q.wid])x.drawImage(imgs[q.wid],cx-60,ry+44,120,120);else{x.fillStyle='#ffffffb0';x.fillRect(cx-60,ry+44,120,120)}
+  x.font=F('700',28);const cw=chips.map(c2=>x.measureText(c2[0]).width+46),tot=cw.reduce((a,b)=>a+b,0)+14*(chips.length-1);
+  let cx0=(LW+tot)/2;chips.forEach((c2,i)=>{rr(cx0-cw[i],348,cw[i],48,24);x.fillStyle=c2[1];x.fill();T(c2[0],cx0-cw[i]/2,382,28,'700','#fff');cx0-=cw[i]+14});
+  // الكروت (شفافة)
+  let y=430;
+  data.forEach(s=>{
+    rr(P,y,CW,s.h,44);const cg=x.createLinearGradient(0,y,0,y+s.h);cg.addColorStop(0,'rgba(255,255,255,.17)');cg.addColorStop(1,'rgba(255,255,255,.06)');x.fillStyle=cg;x.fill();x.lineWidth=2;x.strokeStyle='rgba(255,255,255,.34)';x.stroke();
+    T(s.n,P+CW-40,y+58,44,'800','#fff','right',CW-100);
+    let ry=y+HH;
+    s.Ls.forEach((L,li)=>{
+      if(li>0){x.fillStyle='rgba(255,255,255,.2)';x.fillRect(P+40,ry-4,CW-80,2)}
+      if(s.Ls.length>1)T('عامل '+(li+1),P+CW-40,ry+20,24,'700','#ffffffaa','right');
+      const colW=(CW-80)/3,m=L.items.length,sr=P+CW/2+m*colW/2;
+      L.items.forEach(({q,k},i)=>{
+        const cx=sr-colW*(i+.5),o=wk(q.wid),ay=ry+78;
+        x.save();x.beginPath();x.arc(cx,ay,44,0,7);x.closePath();x.clip();
+        if(imgs[q.wid])x.drawImage(imgs[q.wid],cx-44,ay-44,88,88);else{x.fillStyle='#ffffff40';x.fillRect(cx-44,ay-44,88,88)}
         x.restore();
-        if(!imgs[q.wid])T((o.n||'؟').trim().charAt(0)||'؟',cx,ry+124,52,'800',INK);
-        if(q.st==='abs'){x.beginPath();x.arc(cx,ry+104,60,0,7);x.fillStyle='#78787899';x.fill()}
-        x.beginPath();x.arc(cx,ry+104,60,0,7);x.lineWidth=5;x.strokeStyle='#fff';x.stroke();
-        T(o.n||'— فاضي —',cx,ry+206,38,'800',INK,'center',colW-14);
-        rr(cx-colW/2+8,ry+222,colW-16,44,22);x.fillStyle=SC[k];x.fill();
-        T(SH[k+1].n+' · '+SH[k+1].t,cx,ry+253,22,'700','#fff','center',colW-34);
-        if(q.nt)WR(q.nt,cx,ry+296,25,'800',q.st==='abs'||q.st==='short'?'#b3402f':q.st==='cov'?'#7a4f00':'#17683c',colW-10);
+        if(!imgs[q.wid])T((o.n||'؟').trim().charAt(0)||'؟',cx,ay+16,44,'800','#fff');
+        if(q.st==='abs'){x.beginPath();x.arc(cx,ay,44,0,7);x.fillStyle='#78787899';x.fill()}
+        x.beginPath();x.arc(cx,ay,44,0,7);x.lineWidth=4;x.strokeStyle='#fff';x.stroke();
+        T(o.n||'—',cx,ry+158,30,'800','#fff','center',colW-14);
+        rr(cx-colW/2+10,ry+170,colW-20,36,18);x.fillStyle=SC[k];x.fill();
+        T(q.h?'12 ساعة · '+q.h:SH[k+1].n+' · '+SH[k+1].t,cx,ry+196,19,'700','#fff','center',colW-44);
+        const nt=noteOf(q);if(nt)WR(nt,cx,ry+238,21,'800',NC[q.st]||'#fff',colW-12);
       });
+      ry+=L.rh;
     });
-    y+=h+GAP;
+    y+=s.h+GAP+gx;
   });
-  T('AL-TAWHEED EGYPT · FOR TEXTILE STRIPS',W/2,H-52,26,'500','#ffffffb3');
+  T('AL-TAWHEED EGYPT · FOR TEXTILE STRIPS',LW/2,LH-40,24,'500','#ffffffb3');
   const blob=await new Promise(r=>c.toBlob(r,'image/png'));
   PB=new File([blob],'ورادي-'+D+'.png',{type:'image/png'});if(PU)URL.revokeObjectURL(PU);PU=URL.createObjectURL(PB);
-  sheet(`<h3>صورة الجدول</h3><img src="${PU}" alt="" style="width:100%;border-radius:14px">${bt('مشاركة / إرسال واتساب','shr()','p')}${bt('تنزيل الصورة','dlp()')}${bt('إغلاق','cl()')}`);
+  sheet(`<h3>صورة الجدول (A4)</h3><img src="${PU}" alt="" style="width:100%;border-radius:12px;border:1px solid #0002">${bt('مشاركة / إرسال واتساب','shr()','p')}${bt('تنزيل الصورة','dlp()')}${bt('إغلاق','cl()')}`);
 }
 function shr(){if(navigator.canShare&&navigator.canShare({files:[PB]}))navigator.share({files:[PB],title:'ورادي التوحيد'}).catch(()=>{});else dlp()}
 function dlp(){const a=document.createElement('a');a.href=PU;a.download=PB.name;a.click()}
