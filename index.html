@@ -123,6 +123,10 @@ main{max-width:980px;margin:-32px auto 0;background:var(--bg);border-radius:36px
 .dp.on{box-shadow:0 8px 16px color-mix(in srgb,var(--br) 40%,transparent)}
 .fab{position:fixed;left:16px;bottom:22px;height:56px;padding:0 20px;border-radius:20px;background:var(--br);color:#fff;border:0;font-weight:800;display:flex;align-items:center;gap:8px;box-shadow:0 12px 26px color-mix(in srgb,var(--br) 50%,transparent);z-index:6;cursor:pointer}
 .bn{display:none}
+.pho{width:100%;height:140px;display:flex;justify-content:center;align-items:flex-end;margin-bottom:-2px}
+.pho img{max-height:100%;max-width:100%;object-fit:contain;display:block;-webkit-mask-image:linear-gradient(to bottom,#000 58%,transparent 100%),linear-gradient(to right,transparent 0,#000 17%,#000 83%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,#000 58%,transparent 100%),linear-gradient(to right,transparent 0,#000 17%,#000 83%,transparent 100%);mask-composite:intersect}
+.pho .av{align-self:center;width:64px;height:64px}
+.cell.abs .pho img{filter:grayscale(1);opacity:.65}
 @page{size:A5 landscape;margin:7mm}
 @media print{
 *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -140,6 +144,7 @@ main{padding:0;max-width:none}
 .row .cell{flex-direction:row;text-align:right;padding:3px 5px;gap:5px;box-shadow:none;border-radius:8px;break-inside:avoid}
 .row .cell>div{width:auto;text-align:right}
 .av{width:28px;height:28px;font-size:12pt;border-width:1px;box-shadow:none}
+.pho{width:56px!important;height:56px!important;flex:none;margin:0}.pho .av{width:28px;height:28px}
 .row .cell b{font-size:9.5pt;margin:0}
 .row .sb{font-size:7.5pt;padding:0 5px;justify-content:flex-start}
 .sb svg{width:9px;height:9px}
@@ -212,6 +217,7 @@ function render(){
   $('#app').innerHTML=({day:dayV,set:setV,ros:rosV,cfg:cfgV})[tab]();
 }
 
+const phh=o=>o.p?`<div class="pho"><img src="${o.p}" alt=""></div>`:`<div class="pho"><div class="av">${esc((o.n||'؟').trim().charAt(0)||'؟')}</div></div>`;
 function dayV(){
   const w=week(D),td=todayISO();
   const base=dn(D)-mod(new Date(dn(D)*864e5).getUTCDay()+1,7);
@@ -226,7 +232,7 @@ function dayV(){
       if(st.l.length>1)body+=`<h3>عامل ${li+1} في الوردية</h3>`;
       const L=lane(ln,D);
       body+=`<div class="row">`+L.map((x,i)=>{const o=wk(x.wid);if(x.st==='abs')na++;if(x.st==='short')ns++;
-        return `<button class="cell s${i+1} ${x.st}" onclick="act(${si},${li},${i})">${avh(o)}<div><b>${esc(o.n)||'— فاضي —'}</b><span class="sb">${SI[i]} ${SH[i+1].n} · ${SH[i+1].t}</span>${x.nt?`<div class="nt">${x.nt}</div>`:''}</div></button>`}).join('')+`</div>`;
+        return `<button class="cell s${i+1} ${x.st}" onclick="act(${si},${li},${i})">${phh(o)}<div><b>${esc(o.n)||'— فاضي —'}</b><span class="sb">${SI[i]} ${SH[i+1].n} · ${SH[i+1].t}</span>${x.nt?`<div class="nt">${x.nt}</div>`:''}</div></button>`}).join('')+`</div>`;
     });
     body+=`</section>`;
   });
